@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marker Correction Data Entry</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#17202a}
+.container{max-width:1400px;margin:0 auto;padding:22px}
+.header{background:#17202a;color:white;padding:20px 24px;border-radius:14px;margin-bottom:18px}
+.header h1{margin:0 0 5px;font-size:25px}.header p{margin:0;color:#cbd5df}
+.card{background:white;border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 2px 10px #0000000d}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}
+.field{display:flex;flex-direction:column;gap:7px}.field.full{grid-column:1/-1}
+label{font-weight:700;font-size:14px}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid #ccd3da;border-radius:8px;font-size:14px;outline:none;background:white}
+input:focus,select:focus,textarea:focus{border-color:#3478f6;box-shadow:0 0 0 2px #3478f61a}
+textarea{min-height:80px;resize:vertical}
+.required{color:#d93025}.optional{font-weight:normal;color:#777;font-size:12px}
+.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+button{border:0;border-radius:8px;padding:11px 17px;font-weight:700;cursor:pointer}
+.primary{background:#1769e0;color:#fff}.secondary{background:#e9edf2;color:#17202a}.danger{background:#dc3545;color:#fff}.success{background:#198754;color:#fff}
+.toolbar{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:center}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.stat{background:#f0f4f8;padding:12px 18px;border-radius:10px}.stat b{font-size:20px}
+.table-wrap{overflow:auto;border:1px solid #e1e5e9;border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:1100px}
+th,td{padding:11px 10px;border-bottom:1px solid #e8ebee;text-align:left;vertical-align:top;font-size:13px}
+th{background:#f6f8fa;white-space:nowrap}
+tr:hover td{background:#fafcff}
+.badge{display:inline-block;padding:4px 8px;border-radius:20px;background:#eef4ff;color:#1769e0;font-size:12px;font-weight:700}
+.small-btn{padding:6px 9px;font-size:12px;margin:2px}
+.empty{text-align:center;padding:35px;color:#777}
+.notice{padding:10px 12px;border-radius:8px;background:#fff7df;color:#725800;margin-top:12px;font-size:13px}
+.multiselect{position:relative}
+.multiselect-btn{width:100%;text-align:left;background:white;border:1px solid #ccd3da;border-radius:8px;padding:11px 12px;font-size:14px;cursor:pointer;font-weight:normal;color:#17202a;display:flex;justify-content:space-between;align-items:center}
+.multiselect-btn:after{content:"▾";color:#777;margin-left:6px}
+.multiselect-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1px solid #ccd3da;border-radius:8px;box-shadow:0 6px 18px #0000001f;padding:8px;max-height:240px;overflow:auto;z-index:30}
+.multiselect-panel label{display:flex;align-items:center;gap:8px;font-weight:normal;padding:6px 6px;cursor:pointer;font-size:13px;border-radius:6px}
+.multiselect-panel label:hover{background:#f4f6f8}
+.multiselect-panel hr{border:none;border-top:1px solid #eee;margin:6px 0}
+.multiselect-panel .empty-note{color:#999;font-size:12px;padding:6px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1}}
+@media(max-width:600px){.container{padding:10px}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.header h1{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Marker Correction Data Entry</h1>
+    <p>Daily marker correction record management</p>
+  </div>
+
+  <div class="card">
+    <h2>Google Sheet Sync <span class="optional">(Optional)</span></h2>
+    <div class="toolbar" style="grid-template-columns:3fr auto auto">
+      <input id="sheetUrl" placeholder="Paste your Google Apps Script Web App URL here">
+      <button class="primary" type="button" id="saveSheetUrlBtn">Save URL</button>
+      <button class="secondary" type="button" id="syncAllBtn">Sync All to Sheet</button>
+    </div>
+    <div class="notice" id="sheetSyncStatus" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitle">New Data Entry</h2>
+    <form id="entryForm">
+      <input type="hidden" id="editId">
+      <div class="grid">
+        <div class="field">
+          <label>Date</label>
+          <input id="date" type="date" required>
+        </div>
+        <div class="field">
+          <label>Buyer <span class="required">*</span></label>
+          <input id="buyer" list="buyerList" placeholder="Enter buyer" required>
+        </div>
+        <div class="field">
+          <label>Style <span class="required">*</span></label>
+          <input id="style" placeholder="Enter style" required>
+        </div>
+        <div class="field">
+          <label>Dia</label>
+          <div style="display:flex;gap:6px">
+            <input id="dia" placeholder="e.g. 32" style="flex:2">
+            <select id="diaUnit" style="flex:1">
+              <option value="cm" selected>CM</option>
+              <option value="inch">Inch</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Length <span class="optional">(Optional)</span></label>
+          <div style="display:flex;gap:6px">
+            <input id="length" placeholder="e.g. 48" style="flex:2">
+            <select id="lengthUnit" style="flex:1">
+              <option value="cm" selected>CM</option>
+              <option value="inch">Inch</option>
+              <option value="yard">Yard-Inch</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>GMS</label>
+          <input id="gms" placeholder="e.g. 180">
+        </div>
+        <div class="field">
+          <label>Marker Pc</label>
+          <input id="markerPc" placeholder="e.g. 12">
+        </div>
+        <div class="field">
+          <label>Table Supervisor <span class="required">*</span></label>
+          <input id="supervisor" list="supervisorList" placeholder="Enter supervisor" required>
+        </div>
+        <div class="field full">
+          <label>Consumption (kg/dozen) <span class="optional">Auto-calculated</span></label>
+          <input id="consumptionDisplay" readonly placeholder="Fill Dia, Length, GMS &amp; Marker Pc to calculate" style="background:#f0f4f8;font-weight:700;color:#1769e0">
+        </div>
+        <div class="field full">
+          <label>Marker Correction</label>
+          <textarea id="correction" placeholder="Write marker correction details..."></textarea>
+        </div>
+        <div class="field full">
+          <label>Remarks <span class="optional">(Optional)</span></label>
+          <textarea id="remarks" placeholder="Additional remarks..."></textarea>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" type="submit" id="saveBtn">+ Save Data</button>
+        <button class="secondary" type="button" id="clearBtn">Clear</button>
+      </div>
+    </form>
+    <div class="notice">Data is saved only in this browser's Local Storage. Clearing browser/site data will remove the records.</div>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat">Total Entries<br><b id="totalCount">0</b></div>
+      <div class="stat">Today's Entries<br><b id="todayCount">0</b></div>
+    </div>
+
+    <div class="toolbar">
+      <input id="search" placeholder="Search buyer, style, dia, correction...">
+      <input id="filterDate" type="date" title="Filter by date">
+      <select id="filterBuyer"><option value="">All Buyers</option></select>
+      <div class="multiselect" id="supervisorFilterWrap">
+        <button type="button" class="multiselect-btn" id="supervisorFilterBtn">All Supervisors</button>
+        <div class="multiselect-panel" id="supervisorFilterPanel" style="display:none"></div>
+      </div>
+      <button class="success" type="button" id="exportBtn">Export CSV</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Date</th><th>Buyer</th><th>Style</th><th>Dia</th>
+            <th>Length</th><th>GMS</th><th>Marker Pc</th><th>Consumption<br>(kg/dozen)</th><th>Marker Correction</th><th>Remarks</th>
+            <th>Table Supervisor</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<datalist id="buyerList"></datalist>
+<datalist id="supervisorList"></datalist>
+
+<script>
+const STORAGE_KEY = "markerCorrectionData_v1";
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+const $ = id => document.getElementById(id);
+const today = () => new Date().toISOString().slice(0,10);
+
+function saveStorage(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function esc(v){
+  return String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+
+// ---- Consumption formula helpers ----
+// Formula: ((Dia" + 2) * (Length" + 2) * GSM / 1550 / 1000 / MarkerPc) * 12  => kg/dozen
+function toNumber(v){
+  const m=String(v??"").match(/\d+(\.\d+)?/);
+  return m?parseFloat(m[0]):NaN;
+}
+function diaToInch(value,unit){
+  const n=toNumber(value);
+  if(isNaN(n))return NaN;
+  return unit==="cm"?n/2.54:n;
+}
+function lengthToInch(value,unit){
+  if(unit==="yard"){
+    const nums=String(value??"").match(/\d+(\.\d+)?/g)||[];
+    if(!nums.length)return NaN;
+    const yd=parseFloat(nums[0])||0;
+    const inch=nums[1]?parseFloat(nums[1]):0;
+    return yd*36+inch;
+  }
+  const n=toNumber(value);
+  if(isNaN(n))return NaN;
+  return unit==="cm"?n/2.54:n;
+}
+function calcConsumption(){
+  const diaIn=diaToInch($("dia").value,$("diaUnit").value);
+  const lenIn=lengthToInch($("length").value,$("lengthUnit").value);
+  const gsm=parseFloat($("gms").value);
+  const markerPc=parseFloat($("markerPc").value);
+  if([diaIn,lenIn,gsm,markerPc].some(v=>isNaN(v)||v<=0))return null;
+  return ((diaIn+2)*(lenIn+2)*gsm/1550/1000/markerPc)*12;
+}
+function updateConsumptionDisplay(){
+  const c=calcConsumption();
+  $("consumptionDisplay").value=c===null?"":c.toFixed(4)+" kg/dozen";
+}
+["dia","diaUnit","length","lengthUnit","gms","markerPc"].forEach(id=>{
+  $(id).addEventListener("input",updateConsumptionDisplay);
+  $(id).addEventListener("change",updateConsumptionDisplay);
+});
+
+// ---- Google Sheet sync ----
+const SHEET_URL_KEY = "sheetWebAppUrl_v1";
+const getSheetUrl = () => localStorage.getItem(SHEET_URL_KEY) || "";
+const setSheetUrl = url => localStorage.setItem(SHEET_URL_KEY, url);
+
+function showSyncStatus(msg,isError){
+  const el=$("sheetSyncStatus");
+  el.style.display="block";
+  el.textContent=msg;
+  el.style.background=isError?"#fde8e8":"#fff7df";
+  el.style.color=isError?"#a94442":"#725800";
+}
+
+async function pushToSheet(entry){
+  const url=getSheetUrl();
+  if(!url)return {ok:false,reason:"no-url"};
+  try{
+    const res=await fetch(url,{
+      method:"POST",
+      body:JSON.stringify(entry)
+    });
+    const text=await res.text();
+    let json;
+    try{json=JSON.parse(text);}catch(_){json=null;}
+    if(json && json.status==="success")return {ok:true};
+    return {ok:false,reason:"bad-response",detail:text.slice(0,200)};
+  }catch(err){
+    console.error("Sheet sync failed",err);
+    return {ok:false,reason:"network-error",detail:String(err)};
+  }
+}
+
+$("saveSheetUrlBtn").addEventListener("click",()=>{
+  const url=$("sheetUrl").value.trim();
+  if(!url){showSyncStatus("Please paste a valid Web App URL.",true);return;}
+  setSheetUrl(url);
+  showSyncStatus("Google Sheet URL saved. New entries will now sync automatically.");
+});
+
+$("syncAllBtn").addEventListener("click",async()=>{
+  const url=getSheetUrl();
+  if(!url){showSyncStatus("Please save a Google Sheet URL first.",true);return;}
+  if(!data.length){showSyncStatus("No local data to sync.",true);return;}
+  showSyncStatus(`Syncing 0/${data.length}...`);
+  let ok=0,fail=0,lastError="";
+  for(let i=0;i<data.length;i++){
+    const r=await pushToSheet(data[i]);
+    if(r.ok)ok++;else{fail++;lastError=r.reason+(r.detail?": "+r.detail:"");}
+    showSyncStatus(`Syncing ${i+1}/${data.length}... (${ok} ok, ${fail} failed)`);
+    await new Promise(r=>setTimeout(r,300));
+  }
+  if(fail===0)showSyncStatus(`Sync complete: ${ok} entries sent to Google Sheet.`);
+  else showSyncStatus(`Sync finished: ${ok} succeeded, ${fail} failed. Last error: ${lastError}`,true);
+});
+
+$("sheetUrl").value=getSheetUrl();
+
+function resetForm(){
+  $("entryForm").reset();
+  $("editId").value="";
+  $("date").value=today();
+  $("diaUnit").value="cm";
+  $("lengthUnit").value="cm";
+  $("consumptionDisplay").value="";
+  $("formTitle").textContent="New Data Entry";
+  $("saveBtn").textContent="+ Save Data";
+}
+
+function uniqueValues(key){
+  return [...new Set(data.map(x=>x[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+}
+
+// ---- Table Supervisor checkbox multiselect filter ----
+let excludedSupervisors=new Set(); // supervisors user has unchecked (filtered out)
+
+function renderSupervisorFilterPanel(sups){
+  const panel=$("supervisorFilterPanel");
+  if(!sups.length){
+    panel.innerHTML='<div class="empty-note">No supervisors yet.</div>';
+    return;
+  }
+  const allChecked=excludedSupervisors.size===0;
+  panel.innerHTML=`
+    <label><input type="checkbox" id="supAllChk" ${allChecked?"checked":""}> <b>All</b></label>
+    <hr>
+    ${sups.map(s=>`<label><input type="checkbox" class="supChk" value="${esc(s)}" ${excludedSupervisors.has(s)?"":"checked"}> ${esc(s)}</label>`).join("")}
+  `;
+  $("supAllChk").addEventListener("change",e=>{
+    excludedSupervisors = e.target.checked ? new Set() : new Set(sups);
+    renderSupervisorFilterPanel(sups);
+    updateSupervisorFilterLabel(sups);
+    render();
+  });
+  panel.querySelectorAll(".supChk").forEach(chk=>{
+    chk.addEventListener("change",e=>{
+      const v=e.target.value;
+      if(e.target.checked)excludedSupervisors.delete(v);else excludedSupervisors.add(v);
+      renderSupervisorFilterPanel(sups);
+      updateSupervisorFilterLabel(sups);
+      render();
+    });
+  });
+}
+function updateSupervisorFilterLabel(sups){
+  const included=sups.length-excludedSupervisors.size;
+  let label;
+  if(!sups.length)label="All Supervisors";
+  else if(excludedSupervisors.size===0)label="All Supervisors";
+  else if(included===0)label="No Supervisor Selected";
+  else label=`${included} of ${sups.length} Supervisors`;
+  $("supervisorFilterBtn").textContent=label;
+}
+$("supervisorFilterBtn").addEventListener("click",e=>{
+  e.stopPropagation();
+  const panel=$("supervisorFilterPanel");
+  panel.style.display=panel.style.display==="none"?"block":"none";
+});
+document.addEventListener("click",e=>{
+  if(!$("supervisorFilterWrap").contains(e.target)){
+    $("supervisorFilterPanel").style.display="none";
+  }
+});
+
+function refreshFilters(){
+  const buyers=uniqueValues("buyer"), sups=uniqueValues("supervisor");
+  const oldBuyer=$("filterBuyer").value;
+  $("filterBuyer").innerHTML='<option value="">All Buyers</option>'+buyers.map(x=>`<option>${esc(x)}</option>`).join("");
+  $("filterBuyer").value=buyers.includes(oldBuyer)?oldBuyer:"";
+  $("buyerList").innerHTML=buyers.map(x=>`<option value="${esc(x)}">`).join("");
+  $("supervisorList").innerHTML=sups.map(x=>`<option value="${esc(x)}">`).join("");
+  // drop excluded supervisors that no longer exist; newly seen supervisors stay included by default
+  excludedSupervisors=new Set([...excludedSupervisors].filter(s=>sups.includes(s)));
+  renderSupervisorFilterPanel(sups);
+  updateSupervisorFilterLabel(sups);
+}
+
+function filtered(){
+  const q=$("search").value.trim().toLowerCase();
+  const fd=$("filterDate").value, fb=$("filterBuyer").value;
+  return data.filter(x=>{
+    const hay=[x.buyer,x.style,x.dia,x.length,x.gms,x.markerPc,x.correction,x.remarks,x.supervisor].join(" ").toLowerCase();
+    return (!q||hay.includes(q)) && (!fd||x.date===fd) && (!fb||x.buyer===fb) && !excludedSupervisors.has(x.supervisor);
+  }).sort((a,b)=>b.createdAt-a.createdAt);
+}
+
+function render(){
+  const rows=filtered();
+  $("totalCount").textContent=data.length;
+  $("todayCount").textContent=data.filter(x=>x.date===today()).length;
+  $("tableBody").innerHTML=rows.length?rows.map((x,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${esc(x.date)}</td>
+      <td><span class="badge">${esc(x.buyer)}</span></td>
+      <td>${esc(x.style)}</td>
+      <td>${esc(x.dia)}${x.dia?(x.diaUnit==="cm"?" cm":'"'):""}</td>
+      <td>${x.length?esc(x.length)+(x.lengthUnit==="cm"?" cm":x.lengthUnit==="yard"?" Y":'"'):"—"}</td>
+      <td>${esc(x.gms)||"—"}</td>
+      <td>${esc(x.markerPc)||"—"}</td>
+      <td>${x.consumption!=null?Number(x.consumption).toFixed(4):"—"}</td>
+      <td>${esc(x.correction)}</td>
+      <td>${esc(x.remarks)||"—"}</td>
+      <td>${esc(x.supervisor)}</td>
+      <td>
+        <button class="small-btn primary" onclick="editEntry('${x.id}')">Edit</button>
+        <button class="small-btn danger" onclick="deleteEntry('${x.id}')">Delete</button>
+      </td>
+    </tr>`).join(""):`<tr><td colspan="12" class="empty">No data found.</td></tr>`;
+}
+
+$("entryForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const id=$("editId").value;
+  const obj={
+    id:id||crypto.randomUUID(),
+    date:$("date").value,
+    buyer:$("buyer").value.trim(),
+    style:$("style").value.trim(),
+    dia:$("dia").value.trim(),
+    diaUnit:$("diaUnit").value,
+    length:$("length").value.trim(),
+    lengthUnit:$("lengthUnit").value,
+    gms:$("gms").value.trim(),
+    markerPc:$("markerPc").value.trim(),
+    consumption:calcConsumption(),
+    correction:$("correction").value.trim(),
+    remarks:$("remarks").value.trim(),
+    supervisor:$("supervisor").value.trim(),
+    createdAt:id?(data.find(x=>x.id===id)?.createdAt||Date.now()):Date.now()
+  };
+  if(!id){
+    const norm=v=>String(v||"").trim().toLowerCase();
+    const dup=data.some(x=>
+      norm(x.date)===norm(obj.date) &&
+      norm(x.buyer)===norm(obj.buyer) &&
+      norm(x.style)===norm(obj.style) &&
+      norm(x.dia)===norm(obj.dia) &&
+      norm(x.correction)===norm(obj.correction) &&
+      norm(x.supervisor)===norm(obj.supervisor)
+    );
+    if(dup && !confirm("Same Date, Buyer, Style, Dia, Correction o Supervisor diye ekta entry already ache.\nApni ki tarpor-o notun (duplicate) entry hisebe save korte chan?")){
+      return;
+    }
+  }
+  if(id){
+    const idx=data.findIndex(x=>x.id===id);
+    if(idx>-1)data[idx]=obj;
+  }else data.push(obj);
+  saveStorage(); refreshFilters(); render(); resetForm();
+  pushToSheet(obj).then(r=>{
+    if(r.ok)showSyncStatus("Entry synced to Google Sheet successfully.");
+    else if(r.reason!=="no-url")showSyncStatus(`Sheet sync failed: ${r.reason}${r.detail?" — "+r.detail:""}`,true);
+  });
+  alert(id?"Data updated successfully.":"Data saved successfully.");
+});
+
+function editEntry(id){
+  const x=data.find(v=>v.id===id); if(!x)return;
+  $("editId").value=x.id;$("date").value=x.date;$("buyer").value=x.buyer;
+  $("style").value=x.style;$("dia").value=x.dia;$("diaUnit").value=x.diaUnit||"inch";
+  $("length").value=x.length;$("lengthUnit").value=x.lengthUnit||"inch";
+  $("gms").value=x.gms||"";$("markerPc").value=x.markerPc||"";
+  updateConsumptionDisplay();
+  $("correction").value=x.correction;$("remarks").value=x.remarks;$("supervisor").value=x.supervisor;
+  $("formTitle").textContent="Edit Data Entry";$("saveBtn").textContent="Update Data";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function deleteEntry(id){
+  if(!confirm("Are you sure you want to delete this entry?"))return;
+  data=data.filter(x=>x.id!==id);saveStorage();refreshFilters();render();
+}
+
+$("clearBtn").addEventListener("click",resetForm);
+["search","filterDate","filterBuyer"].forEach(id=>$(id).addEventListener("input",render));
+
+$("exportBtn").addEventListener("click",()=>{
+  const rows=filtered();
+  if(!rows.length){alert("No data to export.");return;}
+  const headers=["Date","Buyer","Style","Dia","Dia Unit","Length","Length Unit","GMS","Marker Pc","Consumption (kg/dozen)","Marker Correction","Remarks","Table Supervisor"];
+  const csv=[headers,...rows.map(x=>[x.date,x.buyer,x.style,x.dia,x.diaUnit,x.length,x.lengthUnit,x.gms,x.markerPc,x.consumption!=null?Number(x.consumption).toFixed(4):"",x.correction,x.remarks,x.supervisor])]
+    .map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\\r\\n");
+  const blob=new Blob(["\\ufeff"+csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="marker-correction-data.csv";a.click();URL.revokeObjectURL(a.href);
+});
+
+resetForm();refreshFilters();render();
+</script>
+</body>
+</html>
